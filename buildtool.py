@@ -40,9 +40,9 @@ def main():
     
     option = args[1]
     p = Path(".")
-    greeter()
 
     if option == "init":
+        greeter()
         init(p)
         return
     
