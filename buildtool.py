@@ -38,13 +38,19 @@ def main():
         print(f"{Style.BRIGHT} {Fore.RED}Error:{Fore.RESET} Invalid number of arguments{Style.RESET_ALL}")
         exit(1)
     
-    greeter()
+    option = args[1]
     p = Path(".")
+    greeter()
+
+    if option == "init":
+        init(p)
+        return
+    
 
     
     keys = openConfigFile()
 
-    option = args[1]
+    
     
     if option == "build":
         build(p, keys)
@@ -56,8 +62,6 @@ def main():
     elif option == "run" or option == "r":
         build(p, keys)
         run(p, keys)
-    elif option == "init":
-        init(p)
     else:
         print(f"{Style.BRIGHT}\n {Fore.RED}Fatal error:{Fore.RESET}\n Invalid option: [{option}]{Style.RESET_ALL}")
 
