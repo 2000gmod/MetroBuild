@@ -62,6 +62,10 @@ def main():
     elif option == "run" or option == "r":
         build(p, keys)
         run(p, keys)
+    elif option == "rbr":
+        clean(p, keys)
+        build(p, keys)
+        run(p, keys)
     else:
         print(f"{Style.BRIGHT}\n {Fore.RED}Fatal error:{Fore.RESET}\n Invalid option: [{option}]{Style.RESET_ALL}")
 
@@ -77,22 +81,30 @@ def build(p: Path, keys: dict):
         objdir.mkdir()
     
     
-
-    sources = [path for path in p.glob(f"./{keys['SRCDIR']}/**/*.cpp")]
+    extension = keys["SRCEXT"]
+    sources = [path for path in p.glob(f"./{keys['SRCDIR']}/**/*.{extension}")]
     
-    objectNames = [f"./{keys['OBJDIR']}/" + str(src).replace("/", "_").replace(".cpp", ".o") for src in sources]
+    objectNames = [f"./{keys['OBJDIR']}/" + str(src).replace("/", "_").replace("." + extension, ".o") for src in sources]
     objectFiles = [Path(name) for name in objectNames]
     dependencyFiles = [Path(name.replace(".o", ".d")) for name in objectNames]
 
-    print(f"{Style.BRIGHT}\tFound {len(sources)} source files{Style.RESET_ALL}")
+    #print(f"{Style.BRIGHT}\tFound {len(sources)} source files inside the source directory{Style.RESET_ALL}")
+    rebuildIndex = []
 
     for i in range(0, len(sources)):
+        if needsRebuild(objectFiles[i], dependencyFiles[i]):
+            rebuildIndex.append(i)
+    
+    
+    if len(rebuildIndex) != 0:
+        print(f"{Style.BRIGHT}\tDetected {len(rebuildIndex)} object files that need a rebuild{Style.RESET_ALL}")
+        print()
+
+    for i in rebuildIndex:
         srcName = str(sources[i])
         objName = str(objectFiles[i])
+        worker.run(f"{keys['CC']} -MMD {keys['CFLAGS']} -c {srcName} -o {objName}", f"\tCompiling {srcName}... ")
 
-        if needsRebuild(objectFiles[i], dependencyFiles[i]):
-            worker.run(f"{keys['CC']} -MMD {keys['CFLAGS']} -c {srcName} -o {objName}", f"\tCompiling {srcName}... ")
-    
     allObj = ""
     for obj in objectNames:
         allObj += obj + " "
@@ -112,7 +124,7 @@ def build(p: Path, keys: dict):
     if linkFlag:
         print(f"\n{Fore.GREEN}{Style.BRIGHT}Build finished in {tTime}[s] {Style.RESET_ALL}")
     else:
-        print(f"\n{Fore.GREEN}{Style.BRIGHT}Build is up to date {Style.RESET_ALL}")
+        print(f"{Fore.GREEN}{Style.BRIGHT}Build is up to date {Style.RESET_ALL}")
 
 def needsLink(tgt: Path, deps: list[Path]) -> bool:
     if not tgt.exists():
@@ -150,7 +162,7 @@ def getDependencies(depf: Path) -> list[Path]:
 import shutil
 
 def clean(p: Path, keys: dict):
-    print(f"{Fore.GREEN}{Style.BRIGHT}Deleting output directories... {Style.RESET_ALL}")
+    print(f"{Fore.GREEN}{Style.BRIGHT}Cleaning output directories... {Style.RESET_ALL}")
     outdir = p / Path(f"{keys['OUTDIR']}")
     objdir = p / Path(f"{keys['OBJDIR']}")
     
@@ -167,11 +179,13 @@ def run(p: Path, keys: dict):
 def init(p: Path):
     print(f"{Fore.GREEN}{Style.BRIGHT}Interactive metrofile creation mode {Style.RESET_ALL}")
     with open(p / "metrofile", "w") as f:
+        
         cc = input("Compiler to use: ")
-        tgt = input("Executable name: ")
-        out = input("Executable directory: ")
+        tgt = input("Executable file name: ")
+        out = input("Generated executable directory: ")
         obj = input("Generated object file directory: ")
         src = input("Source code directory: ")
+        srcext = input("Source file extension: ")
 
 
         f.write(f"CC = {cc}\n")
@@ -182,5 +196,6 @@ def init(p: Path):
         f.write(f"OUTDIR = {out}\n")
         f.write(f"OBJDIR = {obj}\n")
         f.write(f"SRCDIR = {src}\n")
+        f.write(f"SRCEXT = {srcext}\n")
 
     print(f"{Fore.GREEN}{Style.BRIGHT}Successfully created metrofile, remember to open the file to see further options {Style.RESET_ALL}")
